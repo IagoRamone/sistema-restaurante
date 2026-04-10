@@ -1,14 +1,14 @@
 import { FloorLayout } from "@/types/restaurant";
 
 export const defaultLayout: FloorLayout = {
-  name: "Operação",
+  name: "Braseiro Continental",
   width: 1100,
   height: 800,
 
   tables: [
     // === Mesas externas (esquerda, fora do salão) ===
-    { id: "t01", label: "01", x: 20, y: 430, width: 60, height: 50, shape: "rect", seats: 4 },
-    { id: "t02", label: "02", x: 20, y: 340, width: 60, height: 50, shape: "rect", seats: 4 },
+    { id: "t02", label: "02", x: 20, y: 270, width: 60, height: 50, shape: "rect", seats: 4 },
+    { id: "t01", label: "01", x: 20, y: 340, width: 60, height: 50, shape: "rect", seats: 4 },
 
     // === Canto superior esquerdo (dentro do salão) ===
     { id: "t03", label: "03", x: 130, y: 120, width: 40, height: 45, shape: "rect", seats: 2 },
@@ -71,16 +71,13 @@ export const defaultLayout: FloorLayout = {
     // Balcão inferior com banquetas
     { id: "d2", type: "counter", label: "Balcão", x: 430, y: 640, width: 420, height: 90, rotation: 0 },
 
+    // Churrasqueira (acima da cozinha, com cadeiras voltadas para o salão)
+    { id: "d7", type: "churrasqueira", label: "Churrasqueira", x: 20, y: 410, width: 90, height: 100, seats: 4 },
+
     // Cozinha (esquerda, embaixo)
-    { id: "d3", type: "kitchen", label: "Cozinha", x: 20, y: 530, width: 120, height: 80 },
+    { id: "d3", type: "kitchen", label: "Cozinha", x: 20, y: 525, width: 90, height: 70 },
 
-    // Entrada (direita, área com porta)
-    { id: "d4", type: "entrance", label: "Entrada", x: 910, y: 280, width: 70, height: 280 },
-
-    // Parede superior esquerda
-    { id: "d5", type: "wall", label: "", x: 100, y: 100, width: 300, height: 10 },
-
-    // Parede direita
-    { id: "d6", type: "wall", label: "", x: 960, y: 100, width: 10, height: 530 },
+    // Entrada (direita, flush com a borda do salão)
+    { id: "d4", type: "entrance", label: "Entrada", x: 1030, y: 260, width: 70, height: 300 },
   ],
 };

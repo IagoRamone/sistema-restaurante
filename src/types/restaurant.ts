@@ -39,7 +39,8 @@ export interface FloorLayout {
 
 export interface Decoration {
   id: string;
-  type: "counter" | "wall" | "entrance" | "kitchen" | "bathroom" | "plant";
+  type: "counter" | "wall" | "entrance" | "kitchen" | "bathroom" | "plant" | "churrasqueira";
+  seats?: number;
   label: string;
   x: number;
   y: number;

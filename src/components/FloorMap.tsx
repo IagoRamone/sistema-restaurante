@@ -5,6 +5,7 @@ import { FloorLayout, TableStatus, Occupancy } from "@/types/restaurant";
 import TableElement from "./TableElement";
 import DecorationElement from "./DecorationElement";
 import TableModal from "./TableModal";
+import BraseiroLogo from "./BraseiroLogo";
 
 interface TableData {
   status: TableStatus;
@@ -104,65 +105,86 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header com stats */}
-      <header className="bg-white border-b px-4 py-3 flex-shrink-0">
+      <header className="bg-gray-900 border-b border-gray-700 px-6 py-2 flex-shrink-0">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <h1 className="text-xl font-bold text-gray-900">{layout.name}</h1>
+          <BraseiroLogo />
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-gray-600">
-                <span className="font-semibold text-gray-900">{availableCount}</span> livres
+              <span className="w-3 h-3 rounded-full bg-emerald-400" />
+              <span className="text-gray-400">
+                <span className="font-semibold text-white">{availableCount}</span> livres
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-gray-600">
-                <span className="font-semibold text-gray-900">{occupiedCount}</span> ocupadas
+              <span className="w-3 h-3 rounded-full bg-red-400" />
+              <span className="text-gray-400">
+                <span className="font-semibold text-white">{occupiedCount}</span> ocupadas
               </span>
             </div>
             {reservedCount > 0 && (
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="text-gray-600">
-                  <span className="font-semibold text-gray-900">{reservedCount}</span> reservadas
+                <span className="w-3 h-3 rounded-full bg-amber-400" />
+                <span className="text-gray-400">
+                  <span className="font-semibold text-white">{reservedCount}</span> reservadas
                 </span>
               </div>
             )}
-            <div className="hidden sm:block text-gray-400">|</div>
-            <div className="hidden sm:block text-gray-600">
-              <span className="font-semibold text-gray-900">{occupiedSeats}</span>/{totalSeats} lugares
+            <div className="hidden sm:block text-gray-600">|</div>
+            <div className="hidden sm:block text-gray-400">
+              <span className="font-semibold text-white">{occupiedSeats}</span>/{totalSeats} lugares
             </div>
           </div>
         </div>
       </header>
 
       {/* Mapa */}
-      <div className="flex-1 overflow-auto bg-gray-100 p-4">
+      <div className="flex-1 overflow-auto bg-stone-200 p-4">
         <div className="max-w-7xl mx-auto">
           <svg
             viewBox={`-20 -20 ${layout.width + 40} ${layout.height + 40}`}
-            className="w-full h-auto bg-white rounded-2xl shadow-sm border border-gray-200"
+            className="w-full h-auto bg-[#f5f0e8] shadow-lg"
             style={{ maxHeight: "calc(100vh - 120px)" }}
           >
-            {/* Grid de fundo */}
+            {/* Defs: grid, shadows */}
             <defs>
               <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#f3f4f6" strokeWidth="0.5" />
+                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#ddd5c8" strokeWidth="0.7" />
               </pattern>
+              <filter id="element-shadow" x="-15%" y="-15%" width="130%" height="130%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#00000018" />
+              </filter>
+              <filter id="table-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#00000020" />
+              </filter>
             </defs>
+
+            {/* Fundo */}
+            <rect x={0} y={0} width={layout.width} height={layout.height} fill="#f5f0e8" />
             <rect x={0} y={0} width={layout.width} height={layout.height} fill="url(#grid)" />
 
-            {/* Borda do salão */}
-            <rect
-              x={0}
-              y={0}
-              width={layout.width}
-              height={layout.height}
-              fill="none"
-              stroke="#d1d5db"
-              strokeWidth={2}
-              rx={12}
-            />
+            {/* Contorno preto com vão na entrada */}
+            {(() => {
+              const entrance = layout.decorations.find(d => d.type === "entrance");
+              const W = layout.width;
+              const H = layout.height;
+              if (!entrance) {
+                return <rect x={0} y={0} width={W} height={H} fill="none" stroke="#1a1a1a" strokeWidth={6} />;
+              }
+              const blockH = Math.round(entrance.height * 0.25);
+              const gapTop = entrance.y + blockH;
+              const gapBottom = entrance.y + entrance.height - blockH;
+              // Path: contorno completo exceto o vão da entrada (lado direito)
+              const d = `M ${W} ${gapTop} L ${W} 0 L 0 0 L 0 ${H} L ${W} ${H} L ${W} ${gapBottom}`;
+              return (
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="#1a1a1a"
+                  strokeWidth={6}
+                  strokeLinecap="square"
+                />
+              );
+            })()}
 
             {/* Decorações */}
             {layout.decorations.map((dec) => (
@@ -171,8 +193,7 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
 
             {/* Mesas */}
             {layout.tables.map((table) => {
-              const data = tables[table.id];
-              if (!data) return null;
+              const data = tables[table.id] ?? { status: "available" as const, currentOccupancy: null, history: [] };
               return (
                 <TableElement
                   key={table.id}

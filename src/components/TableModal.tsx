@@ -48,9 +48,9 @@ export default function TableModal({
   };
 
   const statusBadgeColors: Record<TableStatus, string> = {
-    available: "bg-green-100 text-green-800",
-    occupied: "bg-red-100 text-red-800",
-    reserved: "bg-yellow-100 text-yellow-800",
+    available: "bg-green-200 text-green-900",
+    occupied:  "bg-red-200 text-red-900",
+    reserved:  "bg-amber-200 text-amber-900",
   };
 
   return (
@@ -63,12 +63,12 @@ export default function TableModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-b">
+        <div className="bg-gray-900 px-6 py-4 flex items-center justify-between border-b border-gray-700">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-white">
               Mesa {table.label}
             </h2>
-            <p className="text-sm text-gray-500">{table.seats} lugares</p>
+            <p className="text-sm text-gray-400">{table.seats} lugares</p>
           </div>
           <div className="flex items-center gap-3">
             <span
@@ -78,7 +78,7 @@ export default function TableModal({
             </span>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              className="text-gray-500 hover:text-gray-300 text-2xl leading-none"
             >
               &times;
             </button>
@@ -257,7 +257,7 @@ export default function TableModal({
                   .map((occ) => (
                     <div
                       key={occ.id}
-                      className="p-3 bg-gray-50 rounded-lg text-sm"
+                      className="p-3 bg-gray-100 rounded-lg text-sm"
                     >
                       <div className="flex justify-between">
                         <span className="text-gray-700">
