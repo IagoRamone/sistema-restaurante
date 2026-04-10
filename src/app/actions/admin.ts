@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function createUser(formData: FormData) {
-  // Verify caller is a gerente
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -13,7 +12,8 @@ export async function createUser(formData: FormData) {
     return { error: 'Nao autenticado' }
   }
 
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
