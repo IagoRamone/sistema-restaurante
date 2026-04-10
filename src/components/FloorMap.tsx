@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FloorLayout, TableStatus, Occupancy } from "@/types/restaurant";
+import type { UserRole } from "@/types/auth";
 import TableElement from "./TableElement";
 import DecorationElement from "./DecorationElement";
 import TableModal from "./TableModal";
 import BraseiroLogo from "./BraseiroLogo";
+import LogoutButton from "./LogoutButton";
+import { createClient } from "@/lib/supabase/client";
+import { occupyTable, freeTable, reserveTable, markEating, getTableHistory } from "@/app/actions/tables";
 
 interface TableData {
   status: TableStatus;
@@ -13,44 +17,130 @@ interface TableData {
   history: Occupancy[];
 }
 
-export default function FloorMap({ layout }: { layout: FloorLayout }) {
+interface FloorMapProps {
+  layout: FloorLayout;
+  userRole: UserRole;
+  userName: string;
+  initialTableStates: Array<{
+    table_id: string;
+    status: string;
+    guests_count: number;
+    notes: string;
+    is_eating: boolean;
+    started_at: string;
+    updated_at: string;
+  }>;
+}
+
+function dbRowToTableData(row: { table_id: string; status: string; guests_count: number; notes: string; is_eating?: boolean; started_at: string }): { status: TableStatus; currentOccupancy: Occupancy | null } {
+  const status = row.status as TableStatus;
+  if (status === "available") {
+    return { status, currentOccupancy: null };
+  }
+  return {
+    status,
+    currentOccupancy: {
+      id: row.table_id,
+      tableId: row.table_id,
+      guestsCount: row.guests_count,
+      startedAt: new Date(row.started_at),
+      endedAt: null,
+      notes: row.notes || "",
+      isEating: row.is_eating ?? false,
+    },
+  };
+}
+
+export default function FloorMap({ layout, userRole, userName, initialTableStates }: FloorMapProps) {
   const [tables, setTables] = useState<Record<string, TableData>>(() => {
     const initial: Record<string, TableData> = {};
     for (const table of layout.tables) {
       initial[table.id] = { status: "available", currentOccupancy: null, history: [] };
     }
+    // Aplicar estados do banco
+    for (const row of initialTableStates) {
+      const { status, currentOccupancy } = dbRowToTableData(row);
+      if (initial[row.table_id]) {
+        initial[row.table_id] = { ...initial[row.table_id], status, currentOccupancy };
+      }
+    }
     return initial;
   });
 
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState(false);
 
-  const selectedTable = selectedTableId
-    ? layout.tables.find((t) => t.id === selectedTableId)
-    : null;
+  // Supabase Realtime - escutar mudanças na tabela table_states
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel('table_states_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'table_states' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const row = payload.new as { table_id: string; status: string; guests_count: number; notes: string; started_at: string };
+            const { status, currentOccupancy } = dbRowToTableData(row);
+            setTables((prev) => ({
+              ...prev,
+              [row.table_id]: {
+                ...prev[row.table_id],
+                status,
+                currentOccupancy,
+              },
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            const row = payload.old as { table_id: string };
+            setTables((prev) => ({
+              ...prev,
+              [row.table_id]: {
+                ...prev[row.table_id],
+                status: "available",
+                currentOccupancy: null,
+              },
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleOccupy = useCallback(
-    (tableId: string, guestsCount: number, notes: string) => {
+    async (tableId: string, guestsCount: number, notes: string) => {
+      setLoadingAction(true);
+      // Atualização otimista
       setTables((prev) => ({
         ...prev,
         [tableId]: {
           ...prev[tableId],
           status: "occupied",
           currentOccupancy: {
-            id: crypto.randomUUID(),
+            id: tableId,
             tableId,
             guestsCount,
             startedAt: new Date(),
             endedAt: null,
             notes,
+            isEating: false,
           },
         },
       }));
       setSelectedTableId(null);
+      await occupyTable(tableId, guestsCount, notes);
+      setLoadingAction(false);
     },
     []
   );
 
-  const handleFree = useCallback((tableId: string) => {
+  const handleFree = useCallback(async (tableId: string) => {
+    setLoadingAction(true);
+    // Atualização otimista
     setTables((prev) => {
       const current = prev[tableId];
       const closedOccupancy = current.currentOccupancy
@@ -68,26 +158,73 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
       };
     });
     setSelectedTableId(null);
+    await freeTable(tableId);
+    setLoadingAction(false);
   }, []);
 
-  const handleReserve = useCallback((tableId: string, notes: string) => {
+  const handleReserve = useCallback(async (tableId: string, notes: string) => {
+    setLoadingAction(true);
+    // Atualização otimista
     setTables((prev) => ({
       ...prev,
       [tableId]: {
         ...prev[tableId],
         status: "reserved",
         currentOccupancy: {
-          id: crypto.randomUUID(),
+          id: tableId,
           tableId,
           guestsCount: 0,
           startedAt: new Date(),
           endedAt: null,
           notes: notes || "Reservada",
+          isEating: false,
         },
       },
     }));
     setSelectedTableId(null);
+    await reserveTable(tableId, notes);
+    setLoadingAction(false);
   }, []);
+
+  const handleMarkEating = useCallback(async (tableId: string) => {
+    setLoadingAction(true);
+    // Atualização otimista
+    setTables((prev) => ({
+      ...prev,
+      [tableId]: {
+        ...prev[tableId],
+        currentOccupancy: prev[tableId].currentOccupancy
+          ? { ...prev[tableId].currentOccupancy!, isEating: true }
+          : null,
+      },
+    }));
+    setSelectedTableId(null);
+    await markEating(tableId);
+    setLoadingAction(false);
+  }, []);
+
+  // Carregar histórico quando abrir modal
+  const handleOpenModal = useCallback(async (tableId: string) => {
+    setSelectedTableId(tableId);
+    const historyData = await getTableHistory(tableId);
+    const history: Occupancy[] = historyData.map((row: { id: string; table_id: string; guests_count: number; notes: string; started_at: string; ended_at: string | null; is_eating?: boolean }) => ({
+      id: row.id,
+      tableId: row.table_id,
+      guestsCount: row.guests_count,
+      startedAt: new Date(row.started_at),
+      endedAt: row.ended_at ? new Date(row.ended_at) : null,
+      notes: row.notes || "",
+      isEating: row.is_eating ?? false,
+    }));
+    setTables((prev) => ({
+      ...prev,
+      [tableId]: { ...prev[tableId], history },
+    }));
+  }, []);
+
+  const selectedTable = selectedTableId
+    ? layout.tables.find((t) => t.id === selectedTableId)
+    : null;
 
   // Stats
   const allTableData = Object.values(tables);
@@ -108,6 +245,20 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
       <header className="bg-gray-900 border-b border-gray-700 px-6 py-2 flex-shrink-0">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <BraseiroLogo />
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400">
+              {userName}
+            </span>
+            {userRole === "gerente" && (
+              <a
+                href="/admin"
+                className="text-sm text-red-400 hover:text-red-300 transition"
+              >
+                Admin
+              </a>
+            )}
+            <LogoutButton />
+          </div>
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-emerald-400" />
@@ -200,7 +351,8 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
                   table={table}
                   status={data.status}
                   guestsCount={data.currentOccupancy?.guestsCount ?? 0}
-                  onClick={() => setSelectedTableId(table.id)}
+                  isEating={data.currentOccupancy?.isEating ?? false}
+                  onClick={() => handleOpenModal(table.id)}
                 />
               );
             })}
@@ -219,6 +371,8 @@ export default function FloorMap({ layout }: { layout: FloorLayout }) {
           onOccupy={(count, notes) => handleOccupy(selectedTable.id, count, notes)}
           onFree={() => handleFree(selectedTable.id)}
           onReserve={(notes) => handleReserve(selectedTable.id, notes)}
+          onMarkEating={() => handleMarkEating(selectedTable.id)}
+          loading={loadingAction}
         />
       )}
     </div>

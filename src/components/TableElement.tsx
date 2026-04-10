@@ -6,6 +6,7 @@ interface TableElementProps {
   table: RestaurantTable;
   status: TableStatus;
   guestsCount: number;
+  isEating: boolean;
   onClick: () => void;
 }
 
@@ -16,7 +17,7 @@ const statusColors: Record<TableStatus, { fill: string; stroke: string; text: st
 };
 
 
-export default function TableElement({ table, status, guestsCount, onClick }: TableElementProps) {
+export default function TableElement({ table, status, guestsCount, isEating, onClick }: TableElementProps) {
   const colors = statusColors[status];
   const cx = table.x + table.width / 2;
   const cy = table.y + table.height / 2;
@@ -82,6 +83,18 @@ export default function TableElement({ table, status, guestsCount, onClick }: Ta
         >
           {guestsCount}/{table.seats}
         </text>
+      )}
+
+      {/* Ícone de comida na mesa */}
+      {status === "occupied" && isEating && (
+        <g transform={`translate(${cx + table.width / 2 - 8}, ${cy - table.height / 2 - 4})`}>
+          <circle cx="0" cy="0" r="10" fill="#f97316" />
+          <g transform="translate(-6, -6) scale(0.5)">
+            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M7 2v20" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3v7" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        </g>
       )}
 
       {/* Indicador de status */}

@@ -21,6 +21,7 @@ export interface Occupancy {
   startedAt: Date;
   endedAt: Date | null;
   notes: string;
+  isEating: boolean;
 }
 
 export interface TableState {
