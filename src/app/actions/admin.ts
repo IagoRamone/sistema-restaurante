@@ -32,7 +32,6 @@ export async function createUser(formData: FormData) {
     return { error: 'Preencha todos os campos' }
   }
 
-  const adminClient = createAdminClient()
   const { error } = await adminClient.auth.admin.createUser({
     email,
     password,
