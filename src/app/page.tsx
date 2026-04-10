@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import FloorMap from "@/components/FloorMap";
 import { defaultLayout } from "@/data/floor-layout";
@@ -10,13 +11,14 @@ export default async function Home() {
 
   if (!user) redirect("/login");
 
+  const admin = createAdminClient();
   const [{ data: profile }, { data: tableStates }] = await Promise.all([
-    supabase
+    admin
       .from("profiles")
       .select("role, full_name")
       .eq("id", user.id)
       .single(),
-    supabase
+    admin
       .from("table_states")
       .select("*"),
   ]);

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import AdminPanel from '@/components/AdminPanel'
 
@@ -8,7 +9,9 @@ export default async function AdminPage() {
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient()
+
+  const { data: profile } = await admin
     .from('profiles')
     .select('role')
     .eq('id', user.id)
@@ -16,7 +19,7 @@ export default async function AdminPage() {
 
   if (profile?.role !== 'gerente') redirect('/')
 
-  const { data: users } = await supabase
+  const { data: users } = await admin
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false })

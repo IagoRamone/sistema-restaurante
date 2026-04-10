@@ -50,6 +50,15 @@ export async function freeTable(tableId: string) {
     .single()
 
   if (current && current.status !== 'available') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // Apagar histórico de dias anteriores
+    await supabase
+      .from('occupancy_history')
+      .delete()
+      .lt('started_at', today.toISOString())
+
     // Salvar no histórico
     await supabase
       .from('occupancy_history')
